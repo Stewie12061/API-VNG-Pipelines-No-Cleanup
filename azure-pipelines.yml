@@ -1,0 +1,350 @@
+parameters:
+  - name: deploymentName
+    type: string
+    default: test
+  - name: expireMinute
+    type: number
+    default: 30
+  - name: expireHour
+    type: number
+    #K8s Use Coordinated Universal Time (UTC), VN UTC +7
+    # Use 24Hour format
+    default: 10
+  - name: expireDay
+    type: number
+    default: 12
+  - name: expireMonth
+    type: number
+    default: 1
+  - name: expireYear
+    type: number
+    default: 2024
+    
+trigger: none
+
+resources:
+  - repo: self
+
+pool:
+  name: Stewie
+
+jobs:
+- job: DeployAll
+  displayName: 'Deploy API and WEB For ${{ parameters.deploymentName }}'
+  steps:
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/s/'
+        artifact: 'manifests'
+        publishLocation: 'pipeline'
+      displayName: 'Publish Pipeline Artifact'
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'current'
+        artifactName: 'manifests'
+        targetPath: '$(Pipeline.Workspace)/manifests'
+      displayName: 'Download Pipeline Artifact'
+
+    - powershell: |
+        $SA_PASSWORD = "${env:SA_PASSWORD}"
+        $SQLSERVER = "${env:SQLSERVER}"
+        $DNS_APIKEY = "${env:DNS_APIKEY}"
+        $DNS_APISECRET = "${env:DNS_APISECRET}"
+        $DOMAIN = "${env:DOMAIN}"
+        $ConvertedUTCHour = ${{ parameters.expireHour }} - 7
+        $templateFiles = Get-ChildItem -Path $(Pipeline.Workspace)/manifests -Filter '*.yaml' -Recurse
+        foreach ($file in $templateFiles) {
+          (Get-Content $file.FullName) | ForEach-Object {
+            $_ -replace '\$\(deploymentName\)', '${{ parameters.deploymentName }}' `
+              -replace '\$\(expireMinute\)', '${{ parameters.expireMinute }}' `
+              -replace '\$\(expireHour\)', "$ConvertedUTCHour" `
+              -replace '\$\(expireDay\)', '${{ parameters.expireDay }}' `
+              -replace '\$\(expireMonth\)', '${{ parameters.expireMonth }}' `
+              -replace '\$\(SQLSERVER\)', "$SQLSERVER" `
+              -replace '\$\(SA_PASSWORD\)', "$SA_PASSWORD" `
+              -replace '\$\(DNS_APIKEY\)', "$DNS_APIKEY" `
+              -replace '\$\(DNS_APISECRET\)', "$DNS_APISECRET" `
+              -replace '\$\(DOMAIN\)', "$DOMAIN"
+          } | Set-Content $file.FullName
+        }
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+        
+      displayName: 'Replace Variables in YAML Templates'
+
+    - task: KubernetesManifest@1
+      inputs:
+        action: 'deploy'
+        connectionType: 'kubernetesServiceConnection'
+        kubernetesServiceConnection: 'VNG K8s API'
+        namespace: 'default'
+        manifests: |
+          $(Pipeline.Workspace)/manifests/job-restore-db.yaml
+      displayName: 'Deploy restore database job'
+
+    - powershell: |
+        # Additional step to wait for the database to be ONLINE
+        $DatabaseName = "1BOSS_${{ parameters.deploymentName }}"
+        $ServerName = "${env:SQLSERVER}"
+        $DBPassword = "${env:SA_PASSWORD}"
+
+        Write-Host "Server Name: $ServerName"
+        Write-Host "Database Name: $DatabaseName"
+
+        # Loop for a maximum of $maxAttempts times
+        $maxAttempts = 10
+        $attempts = 0
+        while ($attempts -lt $maxAttempts) {
+            $attempts++
+
+            $connectionString = "Server=$ServerName;Database=master;User Id=sa;Password=$DBPassword;TrustServerCertificate=True;"
+            $databaseStatus = Invoke-Sqlcmd -ConnectionString $connectionString -Query "SELECT state_desc FROM sys.databases WHERE name = '$DatabaseName'"
+            $databaseState = $databaseStatus.state_desc
+
+            Write-Host "Database state: $databaseState"
+
+            if ($databaseState -eq "ONLINE") {
+                Write-Host "Database is now ONLINE. Proceeding with deployment."
+                break
+            }
+            Write-Host "Waiting for the database to be ONLINE. Attempt $attempts of $maxAttempts."
+            Start-Sleep -Seconds 10
+        }
+        # Check if the loop exited due to reaching the maximum number of attempts
+        if ($attempts -eq $maxAttempts) {
+            Write-Host "Database did not come ONLINE after $maxAttempts attempts. Canceling deployment."
+            exit 1  # Exit the script with a non-zero status code to mark it as failed
+        }
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+      displayName: 'Check database status'
+    
+    - powershell: |
+        $apiKey = "${env:DNS_APIKEY}"
+        $apiSecret = "${env:DNS_APISECRET}"
+
+        # Set the domain and record information
+        $domain = "${env:DOMAIN}"
+        $recordType = "A"
+        $recordName = "${{ parameters.deploymentName }}api"
+        $recordData = "${env:DNS_RECORD_DATA_API}"
+        $ttl = 600
+
+        # Construct the API endpoint URL
+        $apiEndpoint = "https://api.godaddy.com/v1/domains/$domain/records"
+
+        # Construct the headers
+        $headers = @{
+            'Authorization' = "sso-key $($apiKey):$($apiSecret)"
+            'Content-Type'  = 'application/json'
+        }
+
+        # Construct the payload for the new DNS record
+        $payload = ConvertTo-Json @(@{type=$recordType;name=$recordName;data=$recordData;ttl=$ttl})
+
+        # Make the API request to create the DNS record
+        $response = Invoke-WebRequest -Uri $apiEndpoint -Method Patch -Headers $headers -Body $payload
+
+        # Display the response
+        $response
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+      displayName: 'Add DNS Record For API'
+
+    - task: KubernetesManifest@1
+      inputs:
+        action: 'deploy'
+        connectionType: 'kubernetesServiceConnection'
+        kubernetesServiceConnection: 'VNG K8s API'
+        namespace: 'default'
+        manifests: |
+          $(Pipeline.Workspace)/manifests/api-deploy.yaml
+          $(Pipeline.Workspace)/manifests/api-job-ingress-add-host.yaml
+          $(Pipeline.Workspace)/manifests/api-cron-job-run-delete-deploy.yaml
+      displayName: 'Deploy api'
+    
+    - powershell: |
+        # Set your GoDaddy API key and secret
+        $apiKey = "${env:DNS_APIKEY}"
+        $apiSecret = "${env:DNS_APISECRET}"
+
+        # Set the domain and record information
+        $domain = "${env:DOMAIN}"
+        $recordType = "A"
+        $recordName = "${{ parameters.deploymentName }}web"
+        $recordData = "${env:DNS_RECORD_DATA_WEB}"
+        $ttl = 600
+
+        # Construct the API endpoint URL
+        $apiEndpoint = "https://api.godaddy.com/v1/domains/$domain/records"
+
+        # Construct the headers
+        $headers = @{
+            'Authorization' = "sso-key $($apiKey):$($apiSecret)"
+            'Content-Type'  = 'application/json'
+        }
+
+        # Construct the payload for the new DNS record
+        $payload = ConvertTo-Json @(@{type=$recordType;name=$recordName;data=$recordData;ttl=$ttl})
+
+        # Make the API request to create the DNS record
+        $response = Invoke-WebRequest -Uri $apiEndpoint -Method Patch -Headers $headers -Body $payload
+
+        # Display the response
+        $response
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+      displayName: 'Add DNS Record For Web'
+    
+    - task: PowerShellOnTargetMachines@3
+      displayName: "Create IIS Web"
+      inputs:
+        Machines: '$(WEB_SERVER_IP):5986'
+        UserName: '$(WEBSERVER_USERNAME)'
+        UserPassword: '$(WEBSERVER_PASSWORD)'
+        InlineScript: |
+          # Define variables
+          $folderName="${{ parameters.deploymentName }}"
+          Start-Process "robocopy.exe" -ArgumentList "C:\Publish0", "C:\Web\$folderName", "/E", "/MT:4", "/np", "/ndl", "/nfl", "/nc", "/ns" -Wait
+          $siteName = "$folderName"
+          $publishFolder = "C:\Web\$folderName"
+          $applicationPoolName = "$folderName"
+          $bindingIPAddress = "*"
+          $bindingPort = "80"
+          $hostname = "${folderName}web.minhnhut.online"  # Fix: Added $ before folderName
+
+          # Check if IIS module is installed
+          if (-not (Get-Module -ListAvailable -Name WebAdministration)) {
+              Install-Module -Name WebAdministration -Force -AllowClobber
+          }
+
+          # Import the WebAdministration module
+          Import-Module WebAdministration
+
+          # Check if the website already exists
+          if (Test-Path "IIS:\Sites\$siteName") {
+              Write-Host "Website '$siteName' already exists. Exiting."
+              exit
+          }
+
+          # Create Application Pool
+          New-WebAppPool -Name $applicationPoolName
+
+          # Create Website with Custom Binding
+          New-Website -Name $siteName -PhysicalPath $publishFolder -ApplicationPool $applicationPoolName -Port $bindingPort -HostHeader $hostname -Force
+
+          Write-Host "Website '$siteName' created successfully."
+
+          # Define the path to the web.config file
+          $configFilePath = "C:\Web\$folderName\web.config"
+
+          # Check if the file exists
+          if (Test-Path $configFilePath) {
+              # Load the content of the web.config file
+              $configContent = Get-Content -Path $configFilePath -Raw
+
+              # Perform the necessary modifications (replace database names)
+              $configContent = $configContent -replace 'Database=22S999_INTERNALPROJECT_1;', "Database=1BOSS_$folderName;"
+              $configContent = $configContent -replace 'Database=AS_ADMIN_1BOSS_1;', "Database=AS_ADMIN_1BOSS_$folderName;"
+
+              # Save the modified content back to the web.config file
+              $configContent | Set-Content -Path $configFilePath
+
+              Write-Host "web.config file updated successfully."
+          } else {
+              Write-Host "The web.config file does not exist in the specified path."
+          }
+        
+        NewPsSessionOptionArguments: '-SkipCACheck -SkipCNCheck -SkipRevocationCheck'
+        ignoreLASTEXITCODE: true
+        RunPowershellInParallel: false
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+    - task: InstallWindowsScheduledTask@2
+      inputs:
+        ScheduledTaskDefinitionSource: 'InlineXml'
+        ScheduledTaskXml: |
+          <Task
+          	xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task" version="1.3">
+          	<RegistrationInfo>
+          		<Author>WEB-SERVER\stewie12061</Author>
+          		<URI>\Delete test Site</URI>
+          	</RegistrationInfo>
+          	<Triggers>
+          		<TimeTrigger>
+          			<StartBoundary>${{ parameters.expireYear }}-${{ parameters.expireMonth }}-${{ parameters.expireDay }}T${{ parameters.expireHour }}:${{ parameters.expireMinute }}:00+07:00</StartBoundary>
+          			<EndBoundary>${{ parameters.expireYear }}-${{ parameters.expireMonth }}-${{ parameters.expireDay }}T${{ parameters.expireHour }}:${{ parameters.expireMinute }}:10+07:00</EndBoundary>
+          			<Enabled>true</Enabled>
+          		</TimeTrigger>
+          	</Triggers>
+          	<Principals>
+          		<Principal id="Author">
+          			<UserId>S-1-5-21-58857817-991352899-1529334289-1002</UserId>
+          			<LogonType>Password</LogonType>
+          			<RunLevel>HighestAvailable</RunLevel>
+          		</Principal>
+          	</Principals>
+          	<Settings>
+          		<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+          		<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+          		<StopIfGoingOnBatteries>true</StopIfGoingOnBatteries>
+          		<AllowHardTerminate>true</AllowHardTerminate>
+          		<StartWhenAvailable>false</StartWhenAvailable>
+          		<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+          		<IdleSettings>
+          			<StopOnIdleEnd>true</StopOnIdleEnd>
+          			<RestartOnIdle>false</RestartOnIdle>
+          		</IdleSettings>
+          		<AllowStartOnDemand>true</AllowStartOnDemand>
+          		<Enabled>true</Enabled>
+          		<Hidden>false</Hidden>
+          		<RunOnlyIfIdle>false</RunOnlyIfIdle>
+          		<DisallowStartOnRemoteAppSession>false</DisallowStartOnRemoteAppSession>
+          		<UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+          		<WakeToRun>false</WakeToRun>
+          		<ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+          		<DeleteExpiredTaskAfter>PT0S</DeleteExpiredTaskAfter>
+          		<Priority>7</Priority>
+          	</Settings>
+          	<Actions Context="Author">
+          		<Exec>
+          			<Command>C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+          			<Arguments>-File C:\CleanpUpSite.ps1 ${{ parameters.deploymentName }}</Arguments>
+          			<WorkingDirectory>C:\Windows\System32\WindowsPowerShell\v1.0</WorkingDirectory>
+          		</Exec>
+          	</Actions>
+          </Task>
+        ScheduledTaskFullName: 'Delete ${{ parameters.deploymentName }} IIS Site'
+        ScheduledTaskAccountToRunAsOptions: 'CustomAccount'
+        CustomAccountToRunScheduledTaskAsUsername: '$(WEBSERVER_USERNAME)'
+        CustomAccountToRunScheduledTaskAsPassword: '$(WEBSERVER_PASSWORD)'
+        ShouldScheduledTaskRunAfterInstallString: false
+        ComputerNames: '$(WEB_SERVER_IP)'
+        Username: '$(WEBSERVER_USERNAME)'
+        Password: '$(WEBSERVER_PASSWORD)'
+        AuthenticationOptions: 'Default'
+        ProtocolOptions: 'HTTPS'
+        ProtocolSkipCaCheckString: true
+        ProtocolSkipCnCheckString: true
+        ProtocolSkipRevocationCheckString: true
+      env:
+        SA_PASSWORD: $(SA_PASSWORD)
+        DNS_APIKEY: $(DNS_APIKEY)
+        DNS_APISECRET: $(DNS_APISECRET)
+        WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)

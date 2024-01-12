@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: add-ingress-host-$(deploymentName)
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      serviceAccountName: account-service
+      initContainers:
+      - name: install-tools
+        image: debian:stable-slim
+        command: ["/bin/sh", "-c"]
+        args:
+          - apt-get update && apt-get install -y jq
+        volumeMounts:
+        - name: shared-volume
+          mountPath: /shared
+      containers:
+      - name: add-host-container
+        image: bitnami/kubectl
+        command:
+          - "sh"
+          - "-c"
+          - |
+            export PATH=$PATH:/shared/usr/bin
+            kubectl patch ingress ingress-route -n default --type=json -p "[{'op': 'add', 'path': '/spec/rules/-', 'value': {'host': '$(deploymentName)api.minhnhut.online', 'http': {'paths': [{'path': '/(.*)', 'pathType': 'Prefix', 'backend': {'service': {'name': 'api-clusterip-srv-$(deploymentName)', 'port': {'number': 80}}}}]}}}]"
+        volumeMounts:
+          - name: shared-volume
+            mountPath: /shared
+      volumes:
+      - name: shared-volume
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 4
