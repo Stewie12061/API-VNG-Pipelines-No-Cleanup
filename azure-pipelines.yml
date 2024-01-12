@@ -222,8 +222,8 @@ jobs:
               $configContent = Get-Content -Path $configFilePath -Raw
 
               # Perform the necessary modifications (replace database names)
-              $configContent = $configContent -replace 'Database=22S999_INTERNALPROJECT_1;', "Database=1BOSS_$folderName;"
-              $configContent = $configContent -replace 'Database=AS_ADMIN_1BOSS_1;', "Database=AS_ADMIN_1BOSS_$folderName;"
+              $configContent = $configContent -replace 'connectionString="Server=SQLServer,1433;Database=DBDataName;User ID=username; Password=password;', "connectionString="Server=$SQLSERVER,1433;Database=1BOSS_$folderName;User ID=sa; Password=$SA_PASSWORD;"
+              $configContent = $configContent -replace 'connectionString="Server=SQLServer,1433;Database=DBDataName;User ID=username; Password=password;', "connectionString="Server=$SQLSERVER,1433;Database=AS_ADMIN_1BOSS_$folderName;User ID=sa; Password=$SA_PASSWORD;"
 
               # Save the modified content back to the web.config file
               $configContent | Set-Content -Path $configFilePath
