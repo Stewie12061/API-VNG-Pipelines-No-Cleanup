@@ -35,7 +35,6 @@ jobs:
         $DNS_APIKEY = "${env:DNS_APIKEY}"
         $DNS_APISECRET = "${env:DNS_APISECRET}"
         $DOMAIN = "${env:DOMAIN}"
-        $ConvertedUTCHour = ${{ parameters.expireHour }} - 7
         $templateFiles = Get-ChildItem -Path $(Pipeline.Workspace)/manifests -Filter '*.yaml' -Recurse
         foreach ($file in $templateFiles) {
           (Get-Content $file.FullName) | ForEach-Object {
