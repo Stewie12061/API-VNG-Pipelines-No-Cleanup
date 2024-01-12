@@ -187,9 +187,12 @@ jobs:
         UserName: '$(WEBSERVER_USERNAME)'
         UserPassword: '$(WEBSERVER_PASSWORD)'
         InlineScript: |
-          # Define variables
           $folderName="${{ parameters.deploymentName }}"
-          Start-Process "robocopy.exe" -ArgumentList "C:\Publish0", "C:\Web\$folderName", "/E", "/MT:4", "/np", "/ndl", "/nfl", "/nc", "/ns" -Wait
+          $SA_PASSWORD="$(SA_PASSWORD)"
+          $SQLSERVER="$(SQLSERVER)"
+
+          # Create publish folder
+          Start-Process "robocopy.exe" -ArgumentList "C:\Publish0", "C:\WebDemo\$folderName", "/E", "/MIR", "/MT:4", "/np", "/ndl", "/nfl", "/nc", "/ns" -Wait
           $siteName = "$folderName"
           $publishFolder = "C:\Web\$folderName"
           $applicationPoolName = "$folderName"
