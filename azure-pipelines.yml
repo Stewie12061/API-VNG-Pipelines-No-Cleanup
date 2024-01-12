@@ -192,7 +192,7 @@ jobs:
           $SQLSERVER="$(SQLSERVER)"
 
           # Create publish folder
-          Start-Process "robocopy.exe" -ArgumentList "C:\Publish0", "C:\WebDemo\$folderName", "/E", "/MIR", "/MT:4", "/np", "/ndl", "/nfl", "/nc", "/ns" -Wait
+          Start-Process "robocopy.exe" -ArgumentList "C:\Publish0", "C:\Web\$folderName", "/E", "/MIR", "/MT:4", "/np", "/ndl", "/nfl", "/nc", "/ns" -Wait
           $siteName = "$folderName"
           $publishFolder = "C:\Web\$folderName"
           $applicationPoolName = "$folderName"
