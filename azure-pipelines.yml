@@ -198,7 +198,7 @@ jobs:
           $applicationPoolName = "$folderName"
           $bindingIPAddress = "*"
           $bindingPort = "80"
-          $hostname = "${folderName}web.minhnhut.online"  # Fix: Added $ before folderName
+          $hostname = "${folderName}-web.minhnhut.online"  # Fix: Added $ before folderName
 
           # Check if IIS module is installed
           if (-not (Get-Module -ListAvailable -Name WebAdministration)) {
