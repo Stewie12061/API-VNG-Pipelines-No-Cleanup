@@ -24,7 +24,7 @@ spec:
           - "-c"
           - |
             export PATH=$PATH:/shared/usr/bin
-            kubectl patch ingress ingress-route -n default --type=json -p "[{'op': 'add', 'path': '/spec/rules/-', 'value': {'host': '$(deploymentName)api.minhnhut.online', 'http': {'paths': [{'path': '/(.*)', 'pathType': 'Prefix', 'backend': {'service': {'name': 'api-clusterip-srv-$(deploymentName)', 'port': {'number': 80}}}}]}}}]"
+            kubectl patch ingress ingress-route -n default --type=json -p "[{'op': 'add', 'path': '/spec/rules/-', 'value': {'host': '$(deploymentName)-api.minhnhut.online', 'http': {'paths': [{'path': '/(.*)', 'pathType': 'Prefix', 'backend': {'service': {'name': 'api-clusterip-srv-$(deploymentName)', 'port': {'number': 80}}}}]}}}]"
         volumeMounts:
           - name: shared-volume
             mountPath: /shared
