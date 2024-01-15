@@ -46,6 +46,7 @@ jobs:
       env:
         SA_PASSWORD: $(SA_PASSWORD)
         WEBSERVER_PASSWORD: $(WEBSERVER_PASSWORD)
+        SQLSERVER: $(SQLSERVER)
         
       displayName: 'Replace Variables in YAML Templates'
 
