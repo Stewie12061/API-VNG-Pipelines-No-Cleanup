@@ -106,7 +106,7 @@ jobs:
         # Set the domain and record information
         $domain = "${env:DOMAIN}"
         $recordType = "A"
-        $recordName = "${{ parameters.deploymentName }}api"
+        $recordName = "${{ parameters.deploymentName }}-api"
         $recordData = "${env:DNS_RECORD_DATA_API}"
         $ttl = 600
 
@@ -152,7 +152,7 @@ jobs:
         # Set the domain and record information
         $domain = "${env:DOMAIN}"
         $recordType = "A"
-        $recordName = "${{ parameters.deploymentName }}web"
+        $recordName = "${{ parameters.deploymentName }}-web"
         $recordData = "${env:DNS_RECORD_DATA_WEB}"
         $ttl = 600
 
