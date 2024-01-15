@@ -14,7 +14,7 @@ spec:
         - -c
         - |
           dbPassword=$(cat /mnt/secrets/SA_PASSWORD)
-          serverName=$(cat /mnt/secrets/SQLSERVER)
+          serverName=$(SQLSERVER)
 
           /opt/mssql-tools/bin/sqlcmd -S $serverName -U sa -P $dbPassword -Q "
             USE [master]
