@@ -14,14 +14,14 @@ pipeline {
         DNS_RECORD_DATA_WEB = '116.118.95.121'
         DOMAIN = 'minhnhut.online'
         SA_PASSWORD = credentials('sa-password-creds')
-        SQLSERVER = '61.28.229.125'
-        WEB_SERVER_IP = '116.118.95.121'
         WEBSERVER_PASSWORD = credentials('web-server-password-creds')
-        WEBSERVER_USERNAME = 'web-server\\stewie12061'
     }
 
     parameters {
-        string(name: 'deploymentName', defaultValue: 'test', description: 'Deployment Name')
+        string(name: 'deploymentName', defaultValue: '', description: 'Deployment Name')
+        string(name: 'SQLSERVER', defaultValue: '61.28.229.125', description: 'Server to deploy web')
+        string(name: 'WEB_SERVER_IP', defaultValue: '116.118.95.121', description: 'Sql server to deploy database')
+        string(name: 'WEBSERVER_USERNAME', defaultValue: 'web-server\\stewie12061', description: 'Server username')
     }
 
     stages {
