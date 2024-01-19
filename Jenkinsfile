@@ -4,7 +4,7 @@ pipeline {
     options {
         buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '5')
 
-        withKubeConfig(caCertificate: '', clusterName: 'API-Cluster', contextName: 'default', credentialsId: 'f4826e5c-a7bb-4ace-ab83-1d91a7b14313', namespace: 'default', restrictKubeConfigAccess: false, serverUrl: 'https://180.93.180.3:6443')
+        withKubeConfig(caCertificate: '', clusterName: 'API-Cluster', contextName: 'default', credentialsId: '2000e8ed-2f4f-48a3-bb04-b7e5aafc369d', namespace: 'default', restrictKubeConfigAccess: false, serverUrl: 'https://180.93.180.3:6443')
     }
 
     environment {
