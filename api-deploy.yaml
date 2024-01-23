@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: apiservice-$(deploymentName)
-        image: stewie12061/apiservice:latest
+        image: vcr.vngcloud.vn/106160-docker-images/apiservice:latest
         resources:
           requests:
             cpu: "300m"
@@ -34,6 +34,8 @@ spec:
           value: Server=$(SQLSERVER),1433;initial catalog=1BOSS_$(deploymentName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
         - name: DbConnectionStrings__ConnectionStrings__Admin
           value: Server=$(SQLSERVER),1433;initial catalog=AS_ADMIN_1BOSS_$(deploymentName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
+      imagePullSecrets:
+      - name: regcred
       volumes:
       - name: google-credentials
         secret:
