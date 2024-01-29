@@ -18,19 +18,19 @@ spec:
 
           /opt/mssql-tools/bin/sqlcmd -S $serverName -U sa -P $dbPassword -Q "
             USE [master]
-            RESTORE DATABASE [1BOSS_$(deploymentName)]
+            RESTORE DATABASE [1BOSS_$(dbName)]
             FROM DISK = N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Backup\1BOSS.bak'
             WITH
-                MOVE N'ASOFT' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\1BOSS_$(deploymentName).mdf',
-                MOVE N'ASOFT_log' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\1BOSS_$(deploymentName).ldf',
+                MOVE N'ASOFT' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\1BOSS_$(dbName).mdf',
+                MOVE N'ASOFT_log' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\1BOSS_$(dbName).ldf',
                 NOUNLOAD, REPLACE;
 
             USE [master]
-            RESTORE DATABASE [AS_ADMIN_1BOSS_$(deploymentName)]
+            RESTORE DATABASE [AS_ADMIN_1BOSS_$(dbName)]
             FROM DISK = N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\Backup\AS_ADMIN_1BOSS.bak'
             WITH
-                MOVE N'AS_ADMIN_ASOFT' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\AS_ADMIN_1BOSS_$(deploymentName).mdf',
-                MOVE N'AS_ADMIN_ASOFT_log' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\AS_ADMIN_1BOSS_$(deploymentName).ldf',
+                MOVE N'AS_ADMIN_ASOFT' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\AS_ADMIN_1BOSS_$(dbName).mdf',
+                MOVE N'AS_ADMIN_ASOFT_log' TO N'D:\Program Files\Microsoft SQL Server\MSSQL15.MSSQLSERVER\MSSQL\DATA\AS_ADMIN_1BOSS_$(dbName).ldf',
                 NOUNLOAD, REPLACE;
           "
         volumeMounts:

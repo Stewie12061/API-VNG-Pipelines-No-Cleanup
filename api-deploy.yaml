@@ -31,9 +31,9 @@ spec:
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: /var/secrets/google/asoft-erp-firebase-adminsdk-7vzks-f1d0261521.json
         - name: DbConnectionStrings__ConnectionStrings__Business
-          value: Server=$(SQLSERVER),1433;initial catalog=1BOSS_$(deploymentName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
+          value: Server=$(SQLSERVER),1433;initial catalog=1BOSS_$(dbName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
         - name: DbConnectionStrings__ConnectionStrings__Admin
-          value: Server=$(SQLSERVER),1433;initial catalog=AS_ADMIN_1BOSS_$(deploymentName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
+          value: Server=$(SQLSERVER),1433;initial catalog=AS_ADMIN_1BOSS_$(dbName);user id=sa;password=$(SA_PASSWORD);Encrypt=false;TrustServerCertificate=True;Connection Timeout=30;
       imagePullSecrets:
       - name: regcred
       volumes:

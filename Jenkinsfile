@@ -35,7 +35,7 @@ pipeline {
                             param (
                                 [string]$name
                             )
-                            if ($name -notmatch "^[a-z][a-z0-9-]{0,61}[a-z0-9]$") {
+                            if ($name -notmatch "^[a-zA-Z][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]$") {
                                 Write-Host $name + " ?"
                                 Write-Host "##vso[task.logissue type=error]Invalid deploymentName. It must contain at most 63 characters, only lowercase alphanumeric characters or \'-\', start with an alphabetic character, and end with an alphanumeric character."
                                 exit 1
@@ -76,7 +76,8 @@ pipeline {
                     $templateFiles = Get-ChildItem -Path $WORKSPACE -Filter '*.yaml' -Recurse
                     foreach ($file in $templateFiles) {
                         (Get-Content $file.FullName) | ForEach-Object {
-                            $_ -replace '\\$\\(deploymentName\\)', "$deploymentName" `
+                            $_ -replace '\\$\\(deploymentName\\)', "$deploymentName".ToLower() `
+                            -replace '\\$\\(dbName\\)', "$deploymentName" `
                             -replace '\\$\\(SQLSERVER\\)', "$SQLSERVER" `
                             -replace '\\$\\(SA_PASSWORD\\)', "$SA_PASSWORD" `
                             -replace '\\$\\(DNS_APIKEY\\)', "$DNS_APIKEY" `
