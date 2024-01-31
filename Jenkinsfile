@@ -235,7 +235,7 @@ pipeline {
                             $SQLSERVER= $using:env:SQLSERVER
 
                             # Create publish folder
-                            robocopy.exe "D:\\Publish\\PUBLISH" "D:\\ERP9\\$folderName\\Web" /E /MIR /MT:4 /np /ndl /nfl /nc /ns
+                            robocopy.exe "D:\\Publish\\PUBLISH-Default" "D:\\ERP9\\$folderName\\Web" /E /MIR /MT:4 /np /ndl /nfl /nc /ns
 
                             $siteName = "$folderName"
                             $publishFolder = "D:\\ERP9\\$folderName\\Web"
