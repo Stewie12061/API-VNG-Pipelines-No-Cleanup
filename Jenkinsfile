@@ -174,8 +174,8 @@ pipeline {
         }
         stage('Deploy API'){
             steps{
-                powershell '''kubectl apply -f ./manifests/api-deploy.yaml
-                    kubectl apply -f ./manifests/api-job-ingress-add-host.yaml
+                powershell '''kubectl apply -f $env:WORKSPACE/manifests/api-deploy.yaml
+                    kubectl apply -f $env:WORKSPACE/manifests/api-job-ingress-add-host.yaml
                     '''
             }
         }
